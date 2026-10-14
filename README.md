@@ -2,7 +2,8 @@
 
 Java 21 / Spring Boot 4.1 modular monolith. The initial `subscriptions/domain`
 catalog contains the three documented plans. It does not activate subscriptions,
-charge customers, persist data or provide private business endpoints.
+charge customers or provide private business endpoints. An opt-in `persistence`
+profile stores basic company identity using PostgreSQL and Flyway.
 
 ## Test and build
 
@@ -12,6 +13,18 @@ With Maven 3.6.3+ and Java 21:
 mvn -Dtest=PlanCatalogTest test
 mvn verify
 ```
+
+Run integration tests with local Java 21, Maven and Docker available:
+
+```sh
+mvn -Pintegration-tests verify
+```
+
+These tests create and remove their own PostgreSQL 18 container. They do not use
+the development Compose database. Plain `mvn verify` and Docker image builds run
+unit/context tests only; integration verification is a separate required check
+for persistence changes. In PowerShell, quote dotted Maven options, for example
+`mvn -Pintegration-tests "-Dit.test=CompanyPersistenceIT" verify`.
 
 Without local Maven, run from this repository in PowerShell:
 
@@ -31,8 +44,8 @@ docker compose -f infra/compose.dev.yml up -d
 ```
 
 PostgreSQL 18 binds to `127.0.0.1:5432`; Mailpit SMTP to `127.0.0.1:1025`
-and its inbox to `http://localhost:8025`. Infrastructure is provisioned only;
-the application has no database, Flyway or email adapter yet.
+and its inbox to `http://localhost:8025`. The database is used only when the
+application's `persistence` profile is explicitly enabled. No email adapter exists.
 `docker compose -f infra/compose.dev.yml stop` stops services without deleting data.
 Do not use `down -v` unless you intend to delete the development database.
 
@@ -48,6 +61,29 @@ The application starts on port 8080. With no API controllers, `/api/v1` returns
 to loopback by default. Do not publish this unauthenticated foundation externally.
 The `dev` and `prod` profiles are configuration placeholders, not deployments.
 
+## Enable company persistence locally
+
+After starting the local database, set `JDBC_DATABASE_URL` to
+`jdbc:postgresql://127.0.0.1:5432/mavuko`, `POSTGRES_USER` to the configured user,
+and `POSTGRES_PASSWORD` to your private development password in the process
+environment. Compose reads `infra/.env`, but does not export it to your shell.
+Do not commit credentials or use a production database for local tests.
+
+```sh
+mvn spring-boot:run "-Dspring-boot.run.profiles=persistence"
+```
+
+Flyway applies `db/migration/V1__create_companies.sql` on startup, before the
+repository is available. Hikari limits the pool to five connections. Missing or
+blank connection settings fail startup; Flyway clean is disabled. The default
+profile remains database-free. Use the local JVM command above for persistence;
+the Docker run example does not connect to host Compose automatically.
+
+The internal repository stores UUID, legal name and optional tax identifier.
+It is not an authorization boundary, creates no subscription or payment, and
+is not exposed over HTTP. Owner membership, company status/audit workflows,
+tax validation and the rest of the company profile remain subsequent work.
+
 ## Scope and next unit
 
 The governing documents are maintained in the parent workspace's `docs/`:
@@ -55,7 +91,7 @@ The governing documents are maintained in the parent workspace's `docs/`:
 `Mavuko_expansiones_futuras.md`. Functional rules take precedence; future features
 are excluded. The backend is an independent Git repository.
 
-Next: company persistence/Flyway and authenticated, audited manual subscription
-activation. Auth0 integration, company/role authorization and catalog management
+Next: Auth0-backed authorization, company membership and authenticated, audited
+manual subscription activation. Company/role authorization and catalog management
 must exist before exposing private operations. Payments and activation remain
 separate. DIAN, MFA and automatic SaaS checkout/renewal are not current scope.

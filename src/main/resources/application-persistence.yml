@@ -1,0 +1,5 @@
+mavuko:
+  database:
+    url: ${JDBC_DATABASE_URL}
+    username: ${POSTGRES_USER:mavuko}
+    password: ${POSTGRES_PASSWORD}
