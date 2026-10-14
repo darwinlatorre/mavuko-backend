@@ -1,0 +1,5 @@
+# PostgreSQL and Mailpit are provisioned by infra/compose.dev.yml.
+# Their adapters will be added with persistence and notification features.
+logging:
+  level:
+    com.mavuko: DEBUG

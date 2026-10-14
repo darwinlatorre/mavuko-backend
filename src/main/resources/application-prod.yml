@@ -1,0 +1,5 @@
+# Deployment is not part of this foundation. Fail closed to loopback by default.
+# Configure identity, database, mail and storage before enabling private APIs.
+logging:
+  level:
+    com.mavuko: INFO

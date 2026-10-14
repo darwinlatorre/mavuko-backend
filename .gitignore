@@ -1,0 +1,7 @@
+/target/
+/.env
+/infra/.env
+/.idea/
+*.iml
+/storage/
+/.codegraph/
