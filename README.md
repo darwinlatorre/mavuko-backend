@@ -57,9 +57,42 @@ docker run --rm -p 127.0.0.1:8080:8080 mavuko-backend:dev
 ```
 
 The application starts on port 8080. With no API controllers, `/api/v1` returns
-404; that is expected, not a functional product API. Local JVM execution binds
-to loopback by default. Do not publish this unauthenticated foundation externally.
+401 without a verified bearer token; that is expected, not a functional product
+API. Local JVM execution binds to loopback by default. Do not publish this
+incomplete application externally.
 The `dev` and `prod` profiles are configuration placeholders, not deployments.
+
+## JWT boundary (not yet a business API)
+
+HTTP access is closed by default, even without Auth0 configuration. Set both
+`AUTH0_ISSUER` and `AUTH0_AUDIENCE` in the backend process environment to enable
+bearer-token verification. Setting only one, or an unsafe issuer, fails startup.
+The issuer must be an HTTPS origin ending in `/`; the authorized development
+tenant uses `https://dev-bjqmy40kw8nsidwf.us.auth0.com/`. The audience must be the
+identifier of the Mavuko API once provisioned, **not** Auth0 Management API.
+No real audience or SPA client ID has been provisioned by this unit.
+
+The decoder obtains public keys from the issuer's `.well-known/jwks.json` over
+HTTPS, accepts RS256 only, and checks issuer, audience, required subject and
+expiration, and any not-before claim. Timestamp validation allows Spring
+Security's default 60-second clock skew. JWKS connections/read operations have
+3/5-second timeouts. Startup does not contact Auth0; token validation needs its
+public key endpoint when the key is not cached.
+
+Only `Authorization: Bearer ...` authenticates requests: no form login, Basic
+authentication, cookie/query tokens or backend HTTP session. Without a verified
+identity responses are 401; verified tokens still receive 403 because no business
+authorization policy exists yet. Even an `admin` claim grants no access by itself.
+CSRF is disabled for this header-only stateless API; revisit this decision before
+introducing browser-cookie authentication. CORS and frontend login are not wired.
+The automatic public OAuth protected-resource metadata filter is excluded from
+the chain because it responds before authorization, even with `denyAll` configured.
+
+Run `mvn "-Dtest=ClosedSecurityTest,JwtBoundaryTest,ClosedMetadataTest" test` for the security tests.
+They use ephemeral local RSA keys and an in-memory JWKS HTTP stub, not Auth0
+credentials or a live tenant. Company memberships, company/site policies and
+global administration rules must be implemented before allowing any endpoint.
+The agreed Auth0.js Embedded Login integration remains unchanged and pending.
 
 ## Enable company persistence locally
 
@@ -91,7 +124,7 @@ The governing documents are maintained in the parent workspace's `docs/`:
 `Mavuko_expansiones_futuras.md`. Functional rules take precedence; future features
 are excluded. The backend is an independent Git repository.
 
-Next: Auth0-backed authorization, company membership and authenticated, audited
+Next: real Auth0 integration, company membership and authenticated, audited
 manual subscription activation. Company/role authorization and catalog management
 must exist before exposing private operations. Payments and activation remain
 separate. DIAN, MFA and automatic SaaS checkout/renewal are not current scope.

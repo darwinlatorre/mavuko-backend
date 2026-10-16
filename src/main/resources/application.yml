@@ -1,6 +1,10 @@
 spring:
   application:
     name: mavuko-backend
+mavuko:
+  auth0:
+    issuer: ${AUTH0_ISSUER:}
+    audience: ${AUTH0_AUDIENCE:}
 server:
   address: ${SERVER_ADDRESS:127.0.0.1}
   port: ${SERVER_PORT:8080}
