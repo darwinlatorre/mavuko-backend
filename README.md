@@ -107,3 +107,29 @@ infra/                    Local Docker Compose infrastructure
 pom.xml                   Maven dependencies and build configuration
 Dockerfile                Application container image
 ```
+
+## Persistence design
+
+Spring Boot configures the datasource, Flyway, Hibernate and Spring Data JPA;
+there is no manual persistence configuration class. The default profile excludes
+datasource auto-configuration, and `persistence` opts back in using the existing
+`mavuko.database` properties. Flyway owns schema changes; Hibernate only validates
+them. Open-in-view is disabled, and Flyway clean is disabled.
+
+`JpaCompanyRepository` implements the unchanged domain port. Its `add` operation
+uses `@Transactional`; lookups use `@Transactional(readOnly = true)`. Keep these
+boundaries in the adapter while operations are this small; move orchestration to
+transactional application services when a use case spans multiple repositories,
+not to HTTP controllers. Assigned UUID entities explicitly report newness so a
+duplicate insert fails instead of overwriting stored company data.
+
+- **Mappers:** keep JPA entities behind the domain boundary. The small explicit
+  mapper is sufficient now; consider MapStruct when mappings become repetitive.
+- **Builders:** use them for complex construction or test fixtures, not as a
+  substitute for constructors that enforce domain invariants.
+- **Lombok:** optional for repetitive boilerplate; avoid entity `@Data` and generated
+  equality or string methods that traverse lazy associations.
+- **DTOs:** introduce request/response records when HTTP endpoints are added;
+  never expose JPA entities as API contracts.
+- **Specifications:** add them when composable dynamic filters are required.
+  Simple identity lookups only need the plain Spring Data repository.
