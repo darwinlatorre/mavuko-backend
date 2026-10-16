@@ -91,9 +91,11 @@ tax validation and the rest of the company profile remain subsequent work.
 - Keep the domain repository port independent of JPA. An explicit mapper separates
   the domain record from its persistence entity; consider MapStruct only when
   mapping volume makes generated mappings worthwhile.
-- Keep explicit `@Transactional` boundaries on adapter operations for now, with
-  read-only lookups. Move orchestration transactions to application services when
-  a use case spans repositories; do not put persistence transactions in controllers.
+- Keep explicit `@Transactional` boundaries in application use cases:
+  `CompanyService.add` starts a write transaction and `findById` uses a read-only
+  transaction. Adapters have no custom transaction annotations; Spring Data's
+  built-in repository transactions join the application transaction. Do not put
+  persistence transactions in controllers.
 - Add request/response DTOs when HTTP boundaries exist; never expose JPA entities.
 - Use builders for genuinely complex optional construction, not simple records.
   Lombok is optional for repetitive boilerplate; avoid entity `@Data` and generated

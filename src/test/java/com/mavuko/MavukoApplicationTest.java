@@ -18,5 +18,6 @@ class MavukoApplicationTest {
         assertThat(context.getBeansOfType(DataSource.class)).isEmpty();
         assertThat(context.containsBean("entityManagerFactory")).isFalse();
         assertThat(context.containsBean("companyJpaRepository")).isFalse();
+        assertThat(context.containsBean("companyService")).isFalse();
     }
 }
