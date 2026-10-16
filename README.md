@@ -117,6 +117,24 @@ It is not an authorization boundary, creates no subscription or payment, and
 is not exposed over HTTP. Owner membership, company status/audit workflows,
 tax validation and the rest of the company profile remain subsequent work.
 
+## Explicit company memberships (internal only)
+
+With `persistence` enabled, Flyway V2 adds `company_memberships` and the
+`AuthorizedCompanies` query port. Lookup uses the exact `(issuer, subject)` pair,
+not email or subject alone, and returns only explicitly granted companies ordered
+by legal name and ID. Identity columns use case-sensitive bytewise collation;
+company grants are unique and reference existing companies. Reads create no data
+and do not require a subscription. V1 and existing company records are unchanged;
+upgrading creates no grants, so existing companies are not implicitly accessible.
+
+This is not an HTTP API, a JWT verifier or an operation-permission policy. Its
+caller must supply an already authenticated identity. The HTTP boundary remains
+closed. Roles, site permissions, grant issuance/revocation and audit history,
+invitations, owner assignment and first-login provisioning remain pending.
+No RLS or production database-role separation is claimed by this local foundation.
+Rolling back application code must preserve applied migrations and grant data;
+there is no automatic destructive down migration.
+
 ## Scope and next unit
 
 The governing documents are maintained in the parent workspace's `docs/`:

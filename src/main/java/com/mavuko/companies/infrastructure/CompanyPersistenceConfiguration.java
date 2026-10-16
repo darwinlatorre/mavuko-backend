@@ -3,6 +3,7 @@ package com.mavuko.companies.infrastructure;
 import javax.sql.DataSource;
 
 import com.mavuko.companies.domain.CompanyRepository;
+import com.mavuko.companies.application.AuthorizedCompanies;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.flywaydb.core.Flyway;
@@ -47,5 +48,10 @@ public class CompanyPersistenceConfiguration {
     @Bean
     CompanyRepository companyRepository(JdbcTemplate companyJdbc) {
         return new JdbcCompanyRepository(companyJdbc);
+    }
+
+    @Bean
+    AuthorizedCompanies authorizedCompanies(JdbcTemplate companyJdbc) {
+        return new JdbcAuthorizedCompanies(companyJdbc);
     }
 }
