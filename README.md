@@ -3,7 +3,7 @@
 Java 21 / Spring Boot 4.1 modular monolith. The initial `subscriptions/domain`
 catalog contains the three documented plans. It does not activate subscriptions,
 charge customers or provide private business endpoints. An opt-in `persistence`
-profile stores basic company identity using PostgreSQL and Flyway.
+profile stores basic company identity using Spring Data JPA, PostgreSQL and Flyway.
 
 ## Test and build
 
@@ -74,8 +74,10 @@ mvn spring-boot:run "-Dspring-boot.run.profiles=persistence"
 ```
 
 Flyway applies `db/migration/V1__create_companies.sql` on startup, before the
-repository is available. Hikari limits the pool to five connections. Missing or
-blank connection settings fail startup; Flyway clean is disabled. The default
+repository is available. Spring Boot auto-configures the datasource, Flyway and
+JPA; Hibernate validates the migrated schema rather than creating it. Hikari
+limits the pool to five connections. Missing or invalid connection settings use
+Spring Boot/database startup diagnostics; Flyway clean is disabled. The default
 profile remains database-free. Use the local JVM command above for persistence;
 the Docker run example does not connect to host Compose automatically.
 
@@ -83,6 +85,21 @@ The internal repository stores UUID, legal name and optional tax identifier.
 It is not an authorization boundary, creates no subscription or payment, and
 is not exposed over HTTP. Owner membership, company status/audit workflows,
 tax validation and the rest of the company profile remain subsequent work.
+
+### Persistence patterns
+
+- Keep the domain repository port independent of JPA. An explicit mapper separates
+  the domain record from its persistence entity; consider MapStruct only when
+  mapping volume makes generated mappings worthwhile.
+- Keep explicit `@Transactional` boundaries on adapter operations for now, with
+  read-only lookups. Move orchestration transactions to application services when
+  a use case spans repositories; do not put persistence transactions in controllers.
+- Add request/response DTOs when HTTP boundaries exist; never expose JPA entities.
+- Use builders for genuinely complex optional construction, not simple records.
+  Lombok is optional for repetitive boilerplate; avoid entity `@Data` and generated
+  equality or string methods that traverse lazy relationships.
+- Introduce Spring Data Specifications only for composable dynamic filters. The
+  current identity lookup needs neither Specifications nor a generic query layer.
 
 ## Scope and next unit
 
