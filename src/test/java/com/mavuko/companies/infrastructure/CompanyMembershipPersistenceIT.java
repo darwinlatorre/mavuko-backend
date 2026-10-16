@@ -150,7 +150,7 @@ class CompanyMembershipPersistenceIT {
         var latest = Flyway.configure().dataSource(DATABASE.getJdbcUrl(), DATABASE.getUsername(), DATABASE.getPassword())
                 .schemas(schema).defaultSchema(schema).cleanDisabled(true).load();
 
-        assertEquals(1, latest.migrate().migrationsExecuted);
+        assertEquals(2, latest.migrate().migrationsExecuted);
         assertEquals(before, upgradeJdbc.queryForList("select * from membership_upgrade.companies order by id"));
         assertEquals(0, upgradeJdbc.queryForObject("select count(*) from membership_upgrade.company_memberships", Integer.class));
         assertEquals(0, latest.migrate().migrationsExecuted);
