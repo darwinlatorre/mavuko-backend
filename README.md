@@ -107,8 +107,8 @@ mvn spring-boot:run "-Dspring-boot.run.profiles=persistence"
 ```
 
 Flyway applies `db/migration/V1__create_companies.sql` on startup, before the
-repository is available. Hikari limits the pool to five connections. Missing or
-blank connection settings fail startup; Flyway clean is disabled. The default
+repository is available. Hikari limits the pool to five connections. Spring Boot
+owns datasource setup and connection failures; Flyway clean is disabled. The default
 profile remains database-free. Use the local JVM command above for persistence;
 the Docker run example does not connect to host Compose automatically.
 
@@ -116,6 +116,23 @@ The internal repository stores UUID, legal name and optional tax identifier.
 It is not an authorization boundary, creates no subscription or payment, and
 is not exposed over HTTP. Owner membership, company status/audit workflows,
 tax validation and the rest of the company profile remain subsequent work.
+
+### Persistence and pattern guidance
+
+Spring Boot configures the datasource, Flyway, Hibernate and Spring Data JPA;
+there is no manual persistence configuration class. Flyway owns schema changes,
+Hibernate validates the schema, and open-in-view is disabled. The domain
+`CompanyRepository` port stays independent of JPA through `JpaCompanyRepository`
+and the explicit `CompanyMapper`. Adapter writes use `@Transactional`; lookups
+use `@Transactional(readOnly = true)`. Keep future multi-operation use-case
+transactions in application services, not HTTP controllers.
+
+Use DTOs at future HTTP boundaries rather than exposing JPA entities. Keep simple
+mappers explicit; consider MapStruct when mappings become repetitive. Builders
+help with many optional fields, but are unnecessary for this small company model.
+Lombok is optional, not a prerequisite; avoid generated entity equality or string
+methods that traverse lazy relationships. Introduce Specifications only when
+composable filtering is needed, not for a simple identifier lookup.
 
 ## Scope and next unit
 

@@ -1,6 +1,9 @@
 spring:
   application:
     name: mavuko-backend
+  autoconfigure:
+    # The persistence profile opts back into database auto-configuration.
+    exclude: org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
 mavuko:
   auth0:
     issuer: ${AUTH0_ISSUER:}
