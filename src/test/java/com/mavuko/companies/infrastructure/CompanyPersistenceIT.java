@@ -8,11 +8,13 @@ import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.aop.support.AopUtils;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -36,6 +38,35 @@ class CompanyPersistenceIT {
     @Autowired CompanyRepository companies;
     @Autowired JdbcTemplate jdbc;
     @Autowired Flyway flyway;
+    @Autowired ApplicationContext context;
+    @Autowired CompanyJpaRepository entities;
+    @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
+
+    @Test
+    void insertParticipatesInApplicationTransactionRollback() {
+        Company company = new Company(UUID.randomUUID(), "Rolled back company", null);
+        var before = jdbc.queryForList("select * from companies order by id");
+
+        var failure = assertThrows(IllegalStateException.class,
+                () -> new org.springframework.transaction.support.TransactionTemplate(transactions)
+                .executeWithoutResult(status -> {
+                    companies.add(company);
+                    assertEquals(company, companies.findById(company.id()).orElseThrow());
+                    throw new IllegalStateException("application failure");
+                }));
+
+        assertEquals("application failure", failure.getMessage());
+        assertTrue(companies.findById(company.id()).isEmpty());
+        assertEquals(before, jdbc.queryForList("select * from companies order by id"));
+    }
+
+    @Test
+    void persistenceUsesJpaRepositories() {
+        assertTrue(context.containsBean("entityManagerFactory"));
+        assertTrue(context.containsBean("companyJpaRepository"));
+        assertEquals(JpaCompanyRepository.class, AopUtils.getTargetClass(companies));
+        assertTrue(AopUtils.isAopProxy(companies));
+    }
 
     @Test
     void storesCompanyIdentityWithoutCreatingSubscriptionsOrPayments() {
@@ -45,6 +76,7 @@ class CompanyPersistenceIT {
         companies.add(second);
 
         assertEquals(first, companies.findById(first.id()).orElseThrow());
+        assertFalse(entities.findById(first.id()).orElseThrow().isNew());
         assertEquals(second, companies.findById(second.id()).orElseThrow());
         assertTrue(companies.findById(UUID.randomUUID()).isEmpty());
         assertEquals(0, jdbc.queryForObject("""

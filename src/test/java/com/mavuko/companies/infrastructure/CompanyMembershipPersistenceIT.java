@@ -148,6 +148,50 @@ class CompanyMembershipPersistenceIT {
         assertEquals(before, upgradeJdbc.queryForList("select * from membership_upgrade.companies order by id"));
     }
 
+    @Test
+    void preservesLiteralIdentityUuidOrderingAndRowsAfterRejectedInsert() throws Exception {
+        String token = UUID.randomUUID().toString();
+        var exact = new ExternalIdentity(" https://issuer.example/" + token + " ", " User-' OR '1'='1-" + token + " ");
+        var trimmed = new ExternalIdentity(exact.issuer().trim(), exact.subject().trim());
+        var lower = new ExternalIdentity(exact.issuer(), exact.subject().toLowerCase(java.util.Locale.ROOT));
+        String name = "  O'Reilly \uD83C\uDF0D " + token + "  ";
+        var first = new Company(UUID.fromString("00000000-0000-0000-0000-000000000001"), name, " \u00A0tax' ");
+        var second = new Company(UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"), name, null);
+        companies.add(second);
+        companies.add(first);
+        grant(exact, second.id());
+        grant(exact, first.id());
+        byte[] before = storedRowsDigest();
+
+        assertEquals(List.of(first, second), authorizedCompanies.findFor(exact));
+        assertTrue(authorizedCompanies.findFor(trimmed).isEmpty());
+        assertTrue(authorizedCompanies.findFor(lower).isEmpty());
+        assertEquals(first, companies.findById(first.id()).orElseThrow());
+        assertTrue(companies.findById(UUID.randomUUID()).isEmpty());
+        assertArrayEquals(before, storedRowsDigest());
+        assertThrows(DataIntegrityViolationException.class,
+                () -> companies.add(new Company(first.id(), "replacement", "changed")));
+        assertArrayEquals(before, storedRowsDigest());
+        assertEquals(List.of(first, second), authorizedCompanies.findFor(exact));
+        var failure = assertThrows(NullPointerException.class, () -> authorizedCompanies.findFor(null));
+        assertEquals("External identity is required", failure.getMessage());
+        assertArrayEquals(before, storedRowsDigest());
+    }
+
+    @Test
+    void preservesPoolBounds() {
+        var pool = (com.zaxxer.hikari.HikariDataSource) jdbc.getDataSource();
+        assertEquals(5, pool.getMaximumPoolSize());
+        assertEquals(1, pool.getMinimumIdle());
+    }
+
+    private byte[] storedRowsDigest() throws Exception {
+        String rows = jdbc.queryForList("select * from companies order by id").toString()
+                + jdbc.queryForList("select * from company_memberships order by issuer, subject, company_id");
+        return java.security.MessageDigest.getInstance("SHA-256")
+                .digest(rows.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
     private Company company(String name) {
         var company = new Company(UUID.randomUUID(), name, null);
         companies.add(company);
