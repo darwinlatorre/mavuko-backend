@@ -116,12 +116,13 @@ datasource auto-configuration, and `persistence` opts back in using the existing
 `mavuko.database` properties. Flyway owns schema changes; Hibernate only validates
 them. Open-in-view is disabled, and Flyway clean is disabled.
 
-`JpaCompanyRepository` implements the unchanged domain port. Its `add` operation
-uses `@Transactional`; lookups use `@Transactional(readOnly = true)`. Keep these
-boundaries in the adapter while operations are this small; move orchestration to
-transactional application services when a use case spans multiple repositories,
-not to HTTP controllers. Assigned UUID entities explicitly report newness so a
-duplicate insert fails instead of overwriting stored company data.
+`CompanyService` owns application transaction boundaries: `add` uses
+`@Transactional`, and `findById` uses `@Transactional(readOnly = true)`. These
+boundaries belong to application use cases, not HTTP controllers or persistence
+adapters. `JpaCompanyRepository` implements the unchanged domain port without
+custom transaction annotations; Spring Data's framework transactions remain and
+join the application transaction. Assigned UUID entities explicitly report newness
+so a duplicate insert fails instead of overwriting stored company data.
 
 - **Mappers:** keep JPA entities behind the domain boundary. The small explicit
   mapper is sufficient now; consider MapStruct when mappings become repetitive.
