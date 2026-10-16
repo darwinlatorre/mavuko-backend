@@ -123,9 +123,11 @@ Spring Boot configures the datasource, Flyway, Hibernate and Spring Data JPA;
 there is no manual persistence configuration class. Flyway owns schema changes,
 Hibernate validates the schema, and open-in-view is disabled. The domain
 `CompanyRepository` port stays independent of JPA through `JpaCompanyRepository`
-and the explicit `CompanyMapper`. Adapter writes use `@Transactional`; lookups
-use `@Transactional(readOnly = true)`. Keep future multi-operation use-case
-transactions in application services, not HTTP controllers.
+and the explicit `CompanyMapper`. Application services own transaction boundaries:
+`CompanyService.add` uses `@Transactional`, and `findById` uses
+`@Transactional(readOnly = true)`. Adapters and HTTP controllers do not own these
+boundaries. Spring Data retains its framework transactions and joins the
+application transaction when one is active.
 
 Use DTOs at future HTTP boundaries rather than exposing JPA entities. Keep simple
 mappers explicit; consider MapStruct when mappings become repetitive. Builders
