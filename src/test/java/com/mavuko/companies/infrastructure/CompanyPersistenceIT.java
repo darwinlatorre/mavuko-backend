@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import com.mavuko.companies.domain.Company;
 import com.mavuko.companies.domain.CompanyRepository;
+import com.mavuko.companies.application.CompanyService;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,12 +36,23 @@ class CompanyPersistenceIT {
         properties.add("mavuko.database.password", DATABASE::getPassword);
     }
 
-    @Autowired CompanyRepository companies;
+    @Autowired CompanyService companies;
+    @Autowired CompanyRepository repository;
     @Autowired JdbcTemplate jdbc;
     @Autowired Flyway flyway;
     @Autowired ApplicationContext context;
     @Autowired CompanyJpaRepository entities;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
+
+    @Test
+    void applicationOwnsTransactionBoundaries() throws Exception {
+        assertTrue(context.containsBean("companyService"));
+        assertTrue(AopUtils.isAopProxy(context.getBean("companyService")));
+        assertNull(JpaCompanyRepository.class.getMethod("add", Company.class)
+                .getAnnotation(org.springframework.transaction.annotation.Transactional.class));
+        assertNull(JpaCompanyRepository.class.getMethod("findById", UUID.class)
+                .getAnnotation(org.springframework.transaction.annotation.Transactional.class));
+    }
 
     @Test
     void insertParticipatesInApplicationTransactionRollback() {
@@ -64,7 +76,7 @@ class CompanyPersistenceIT {
     void persistenceUsesJpaRepositories() {
         assertTrue(context.containsBean("entityManagerFactory"));
         assertTrue(context.containsBean("companyJpaRepository"));
-        assertEquals(JpaCompanyRepository.class, AopUtils.getTargetClass(companies));
+        assertEquals(JpaCompanyRepository.class, AopUtils.getTargetClass(repository));
         assertTrue(AopUtils.isAopProxy(companies));
     }
 

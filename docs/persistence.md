@@ -26,9 +26,14 @@ The parameterized native JPA membership query preserves exact opaque identity
 matching and PostgreSQL ordering. Production adapters no longer use JDBC;
 `JdbcTemplate` remains available for integration fixtures and assertions.
 
-`@Transactional` is explicit on adapters: inserts are read-write, lookups read-only.
-Future application services should own transactions spanning multiple repositories;
-HTTP controllers should not manage database transactions.
+Application use-case implementations own `@Transactional`: `CompanyService.add`
+is read-write, while `CompanyService.findById` and
+`AuthorizedCompaniesService.findFor` are read-only. These services delegate to
+the existing ports and introduce no registration or permission-granting workflow.
+Persistence adapters and HTTP controllers do not define transaction boundaries.
+Spring Data repositories retain their framework-provided transaction behavior and
+join an existing application transaction. Application services can therefore
+coordinate multiple repository calls in a single transaction.
 
 ## Pattern recommendations
 

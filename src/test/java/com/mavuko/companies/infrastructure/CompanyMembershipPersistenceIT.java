@@ -4,9 +4,9 @@ import java.util.List;
 import java.util.UUID;
 
 import com.mavuko.access.domain.ExternalIdentity;
-import com.mavuko.companies.application.AuthorizedCompanies;
+import com.mavuko.companies.application.AuthorizedCompaniesService;
+import com.mavuko.companies.application.CompanyService;
 import com.mavuko.companies.domain.Company;
-import com.mavuko.companies.domain.CompanyRepository;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -39,9 +39,18 @@ class CompanyMembershipPersistenceIT {
         properties.add("mavuko.database.password", DATABASE::getPassword);
     }
 
-    @Autowired CompanyRepository companies;
-    @Autowired AuthorizedCompanies authorizedCompanies;
+    @Autowired CompanyService companies;
+    @Autowired AuthorizedCompaniesService authorizedCompanies;
     @Autowired JdbcTemplate jdbc;
+
+    @Test
+    void membershipTransactionsBelongToTheApplicationService() throws Exception {
+        assertTrue(org.springframework.aop.support.AopUtils.isAopProxy(authorizedCompanies));
+        assertNull(JpaAuthorizedCompanies.class.getAnnotation(
+                org.springframework.transaction.annotation.Transactional.class));
+        assertNull(JpaAuthorizedCompanies.class.getMethod("findFor", ExternalIdentity.class)
+                .getAnnotation(org.springframework.transaction.annotation.Transactional.class));
+    }
 
     @Test
     void returnsOnlyExplicitGrantsForTheExactIssuerAndSubjectWithoutWriting() {
