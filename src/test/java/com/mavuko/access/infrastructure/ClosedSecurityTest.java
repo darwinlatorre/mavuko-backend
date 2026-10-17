@@ -26,7 +26,7 @@ class ClosedSecurityTest {
         var mvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(context.getBean("springSecurityFilterChain", Filter.class)).build();
         for (var request : new org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder[] {
-                get("/api/v1"), post("/api/v1/companies"), get("/login"), get("/error")}) {
+                get("/api/v1"), get("/api/v1/companies"), post("/api/v1/companies"), get("/login"), get("/error")}) {
             var result = mvc.perform(request.accept(MediaType.APPLICATION_JSON))
                     .andExpect(status().isUnauthorized()).andReturn();
             assertThat(result.getResponse().getHeader("Location")).isNull();
