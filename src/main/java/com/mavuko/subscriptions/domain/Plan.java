@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.Period;
 import java.util.OptionalInt;
 
-/** Initial catalog terms, not an activated company subscription. */
+/** Current offer terms. An absent user limit means commercially unlimited users. */
 public record Plan(
         String displayName,
         BigDecimal priceCop,

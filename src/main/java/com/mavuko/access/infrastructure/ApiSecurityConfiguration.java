@@ -7,6 +7,9 @@ import java.util.List;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -35,7 +38,8 @@ public class ApiSecurityConfiguration {
     }
 
     @Bean
-    SecurityFilterChain apiSecurity(HttpSecurity http, Auth0Settings settings, RestTemplate auth0JwkClient)
+    SecurityFilterChain apiSecurity(HttpSecurity http, Auth0Settings settings, RestTemplate auth0JwkClient,
+            Environment environment)
             throws Exception {
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .csrf(AbstractHttpConfigurer::disable)
@@ -44,8 +48,13 @@ public class ApiSecurityConfiguration {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .exceptionHandling(errors -> errors.authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint()))
-                // Authentication alone never grants company or global-administrator access.
-                .authorizeHttpRequests(access -> access.anyRequest().denyAll());
+                .authorizeHttpRequests(access -> {
+                    if (environment.acceptsProfiles(Profiles.of("persistence"))) {
+                        // The controller lists explicit memberships, not business permissions.
+                        access.requestMatchers(HttpMethod.GET, "/api/v1/companies").authenticated();
+                    }
+                    access.anyRequest().denyAll();
+                });
 
         if (settings.configured()) {
             var decoder = NimbusJwtDecoder.withJwkSetUri(settings.issuer() + ".well-known/jwks.json")
@@ -59,7 +68,7 @@ public class ApiSecurityConfiguration {
             http.oauth2ResourceServer(resource -> resource.jwt(jwt -> jwt.decoder(decoder)));
         }
         var chain = http.build();
-        // Spring's metadata filter responds before authorization; this unit exposes no public endpoint.
+        // Do not allow unauthenticated metadata discovery before authorization.
         return new DefaultSecurityFilterChain(chain.getRequestMatcher(), chain.getFilters().stream()
                 .filter(filter -> !(filter instanceof OAuth2ProtectedResourceMetadataFilter)).toList());
     }

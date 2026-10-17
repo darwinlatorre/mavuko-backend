@@ -1,8 +1,9 @@
 # Mavuko Backend
 
 Java 21 and Spring Boot modular monolith for Mavuko. The backend includes a
-subscription plan catalog, company persistence and internal company membership
-queries. HTTP access is closed by default; business endpoints are not yet exposed.
+database-managed subscription plan catalog, company persistence and exact company
+membership queries. HTTP access is closed by default; the authenticated company
+selector is available only with persistence and token validation configured.
 
 ## Requirements
 
@@ -63,8 +64,9 @@ docker compose -f infra/compose.dev.yml stop
 Set both `AUTH0_ISSUER` and `AUTH0_AUDIENCE` in the application process environment
 to configure bearer-token validation. The issuer must be an HTTPS origin ending
 in `/`, and the audience must identify your application API. Missing configuration
-keeps HTTP access closed; configuring token validation does not expose business
-endpoints.
+keeps HTTP access closed. With `persistence` enabled, a verified token can access
+only the company selector; other business operations remain denied. See the
+[company selection API](docs/company-selection-api.md) for its contract and limits.
 
 ## Tests and build
 
@@ -123,6 +125,34 @@ adapters. `JpaCompanyRepository` implements the unchanged domain port without
 custom transaction annotations; Spring Data's framework transactions remain and
 join the application transaction. Assigned UUID entities explicitly report newness
 so a duplicate insert fails instead of overwriting stored company data.
+
+See [Boot-managed JPA persistence](docs/persistence.md) for configuration,
+repository and application transaction details.
+
+## Company memberships and plan catalog
+
+With `persistence` enabled, Flyway V2 adds `company_memberships` and the
+`AuthorizedCompanies` query port. Lookup uses the exact `(issuer, subject)` pair,
+not email or subject alone, and returns only explicitly granted companies ordered
+by legal name and ID. Identity columns use case-sensitive bytewise collation;
+company grants are unique and reference existing companies. Reads create no data
+and do not require a subscription. V1 and existing company records are unchanged;
+upgrading creates no grants, so existing companies are not implicitly accessible.
+
+The [company selector](docs/company-selection-api.md) supplies the validated
+token identity to this query; membership is not an operation-permission policy.
+Roles, site permissions, grant issuance/revocation and audit history,
+invitations, owner assignment and first-login provisioning remain pending.
+No RLS or production database-role separation is claimed by this local foundation.
+Rolling back application code must preserve applied migrations and grant data;
+there is no automatic destructive down migration.
+
+Flyway V3 seeds the commercial plan catalog once. Current offers are read from
+PostgreSQL through read-only application transactions, without a static fallback
+or cache. See [plan catalog maintenance](docs/plan-catalog.md); do not edit applied
+migrations to change offers. No subscriptions, payments or activation are created.
+
+## Implementation guidance
 
 - **Mappers:** keep JPA entities behind the domain boundary. The small explicit
   mapper is sufficient now; consider MapStruct when mappings become repetitive.
